@@ -4,7 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 
 keywords = ["compre", "transfer", "transfira", "bônus", "bonificada"]
-oportunities = []
 
 
 def get_title(post) -> str:
@@ -33,12 +32,13 @@ def main():
 
     soup = BeautifulSoup(page.content, "html.parser")
     posts = soup.find_all('article', class_='post-single')
+    opportunities = []
     for post in posts:
         title = get_title(post)
         if any(substring in title.lower() for substring in keywords):
             opportunity = extract_opportunity(post)
-            oportunities.append(opportunity)
-    return oportunities
+            opportunities.append(opportunity)
+    return opportunities
 
 
 def lambda_handler(event, context):
