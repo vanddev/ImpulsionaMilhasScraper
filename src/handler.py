@@ -1,3 +1,5 @@
+import json
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -36,8 +38,16 @@ def main():
         if any(substring in title.lower() for substring in keywords):
             opportunity = extract_opportunity(post)
             oportunities.append(opportunity)
+    return oportunities
 
 
-if __name__ == '__main__':
-    main()
-    # print(content.prettify())
+def lambda_handler(event, context):
+    result = main()
+    return {
+        'statusCode': 200,
+        'body': json.dumps(result)
+    }
+
+# if __name__ == '__main__':
+#     main()
+# print(content.prettify())
