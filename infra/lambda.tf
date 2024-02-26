@@ -44,9 +44,30 @@ data "aws_iam_policy_document" "lambda_role" {
   }
 }
 
+data "aws_iam_policy_document" "lambda_policy" {
+  statement {
+    effect = "Allow"
+
+    resources = ["*"]
+
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+  }
+}
+
 resource "aws_iam_role" "iam_for_lambda" {
   name               = "${var.lambda_name}-role"
   assume_role_policy = data.aws_iam_policy_document.lambda_role.json
+}
+
+resource "aws_iam_role_policy" "lambda_policy" {
+  name = "${var.lambda_name}-policy"
+  role = aws_iam_role.iam_for_lambda.id
+
+  policy = data.aws_iam_policy_document.lambda_policy.json
 }
 
 resource "aws_lambda_function" "scraper_lambda" {
@@ -56,7 +77,6 @@ resource "aws_lambda_function" "scraper_lambda" {
   role          = aws_iam_role.iam_for_lambda.arn
   layers           = [aws_lambda_layer_version.lambda_layer.arn]
   source_code_hash = data.archive_file.lambda.output_base64sha256
-
   runtime = "python3.8"
 }
 

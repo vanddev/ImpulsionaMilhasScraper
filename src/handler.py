@@ -11,7 +11,7 @@ groups = {"smiles": "https://e-milhas.com/c/9-smiles",
 
 class BadRequestErrors:
     empty_query_parameter = "The Query Parameter 'group' must be fulfilled"
-    invalid_group = f"The group informed is invalid, the group must to be one of this: {", ".join(list(groups.keys()))}"
+    invalid_group = "The group informed is invalid"
 
 
 def get_title(post) -> str:
@@ -62,7 +62,7 @@ def validate_input(event) -> dict:
         return build_response(400, error=BadRequestErrors.empty_query_parameter)
 
     if not event['queryStringParameters']['group'] in groups:
-        return build_response(400, BadRequestErrors.invalid_group)
+        return build_response(400, error=BadRequestErrors.invalid_group)
 
 
 def lambda_handler(event, context):
@@ -72,3 +72,6 @@ def lambda_handler(event, context):
     else:
         return main(event['queryStringParameters']['group'])
 
+
+if __name__ == '__main__':
+    print(lambda_handler({'queryStringParameters': None}, None))
