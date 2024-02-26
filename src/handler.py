@@ -4,6 +4,14 @@ import requests
 from bs4 import BeautifulSoup
 
 keywords = ["compre", "transfer", "transfira", "bônus", "bonificada"]
+groups = {"smiles": "https://e-milhas.com/c/9-smiles",
+          "latampass": "https://e-milhas.com/c/10-latam-pass",
+          "tudoazul": "https://e-milhas.com/c/11-tudoazul"}
+
+
+class BadRequestErrors:
+    empty_query_parameter = "The Query Parameter 'group' must be fulfilled"
+    invalid_group = f"The group informed is invalid, the group must to be one of this: {", ".join(list(groups.keys()))}"
 
 
 def get_title(post) -> str:
@@ -26,9 +34,9 @@ def extract_opportunity(post):
     return op
 
 
-def main():
-    URL = "https://e-milhas.com/c/9-smiles"
-    page = requests.get(URL)
+def main(group_name):
+    url = groups[group_name]
+    page = requests.get(url)
 
     soup = BeautifulSoup(page.content, "html.parser")
     posts = soup.find_all('article', class_='post-single')
@@ -38,16 +46,29 @@ def main():
         if any(substring in title.lower() for substring in keywords):
             opportunity = extract_opportunity(post)
             opportunities.append(opportunity)
-    return opportunities
+    return build_response(200, body=opportunities)
+
+
+def build_response(status_code: int, body=None, error: str = None) -> dict:
+    return {
+        'statusCode': status_code,
+        'body': json.dumps(body) if status_code == 200 else error
+    }
+
+
+def validate_input(event) -> dict:
+    if (not event['queryStringParameters']) or (not event['queryStringParameters']['group']) or (
+            event['queryStringParameters']['group'] is None):
+        return build_response(400, error=BadRequestErrors.empty_query_parameter)
+
+    if not event['queryStringParameters']['group'] in groups:
+        return build_response(400, BadRequestErrors.invalid_group)
 
 
 def lambda_handler(event, context):
-    result = main()
-    return {
-        'statusCode': 200,
-        'body': json.dumps(result)
-    }
+    founded_errors_in_validation = validate_input(event)
+    if founded_errors_in_validation:
+        return founded_errors_in_validation
+    else:
+        return main(event['queryStringParameters']['group'])
 
-# if __name__ == '__main__':
-#     main()
-# print(content.prettify())
