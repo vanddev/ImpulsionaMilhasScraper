@@ -7,6 +7,7 @@ resource "aws_api_gateway_rest_api" "gtw" {
   endpoint_configuration {
     types = ["REGIONAL"]
   }
+  tags = var.tags
 }
 
 
@@ -31,13 +32,13 @@ resource "aws_api_gateway_method" "latest_get" {
 
 
 resource "aws_api_gateway_integration" "lambda_get" {
-  depends_on = [aws_lambda_function.scraper_lambda]
+  depends_on = [module.scraper_lambda]
   http_method = aws_api_gateway_method.latest_get.http_method
   resource_id = aws_api_gateway_resource.latest.id
   rest_api_id = aws_api_gateway_rest_api.gtw.id
   type        = "AWS_PROXY"
   integration_http_method = "POST"
-  uri = aws_lambda_function.scraper_lambda.invoke_arn
+  uri = module.scraper_lambda.invoke_arn
 }
 
 resource "aws_api_gateway_deployment" "deploy" {

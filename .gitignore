@@ -196,3 +196,6 @@ override.tf.json
 terraform.rc
 
 layer_files/
+/infra/.terraform.lock.hcl
+
+.terraform.lock.hcl

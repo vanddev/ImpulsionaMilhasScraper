@@ -1,36 +1,3 @@
-locals {
-  layer_path        = "layer_files"
-  layer_zip_name    = "layer.zip"
-  layer_name        = "requirements_${var.lambda_name}"
-  requirements_name = "requirements.txt"
-  requirements_path = "../${local.requirements_name}"
-}
-
-# create zip file from requirements.txt. Triggers only when the file is updated
-resource "null_resource" "lambda_layer" {
-  triggers = {
-    requirements = filesha1(local.requirements_path)
-  }
-  # the command to install python and dependencies to the machine and zips
-  provisioner "local-exec" {
-    command = "sed -i 's/\r//' create_layer_zip.sh && ./create_layer_zip.sh ${local.layer_path} ${local.requirements_path} ${local.layer_zip_name}"
-  }
-}
-
-resource "aws_lambda_layer_version" "lambda_layer" {
-  depends_on = [null_resource.lambda_layer]
-  filename   = local.layer_zip_name
-  layer_name = local.layer_name
-
-  compatible_runtimes = ["python3.8"]
-}
-
-data "archive_file" "lambda" {
-  type        = "zip"
-  source_file = "../src/handler.py"
-  output_path = "lambda_function_payload.zip"
-}
-
 data "aws_iam_policy_document" "lambda_role" {
   statement {
     effect = "Allow"
@@ -59,32 +26,44 @@ data "aws_iam_policy_document" "lambda_policy" {
 }
 
 resource "aws_iam_role" "iam_for_lambda" {
-  name               = "${var.lambda_name}-role"
+  name               = "${var.lambda_scraper_name}-role"
   assume_role_policy = data.aws_iam_policy_document.lambda_role.json
 }
 
 resource "aws_iam_role_policy" "lambda_policy" {
-  name = "${var.lambda_name}-policy"
+  name = "${var.lambda_scraper_name}-policy"
   role = aws_iam_role.iam_for_lambda.id
 
   policy = data.aws_iam_policy_document.lambda_policy.json
 }
 
-resource "aws_lambda_function" "scraper_lambda" {
-  filename      = "lambda_function_payload.zip"
-  function_name = var.lambda_name
-  handler       = "handler.lambda_handler"
-  role          = aws_iam_role.iam_for_lambda.arn
-  layers           = [aws_lambda_layer_version.lambda_layer.arn]
-  source_code_hash = data.archive_file.lambda.output_base64sha256
-  runtime = "python3.8"
+module "scraper_lambda" {
+  source = "./modules/lambda"
+  function_name = var.lambda_scraper_name
+  lambda_handler = "handler.lambda_handler"
+  role_arn    = aws_iam_role.iam_for_lambda.arn
+  source_file = "handler.py"
+  source_path = abspath("../src/scraper")
+  tags        = var.tags
 }
 
 resource "aws_lambda_permission" "lambda_permission" {
-  depends_on = [aws_api_gateway_rest_api.gtw, aws_lambda_function.scraper_lambda]
+  depends_on = [aws_api_gateway_rest_api.gtw, module.scraper_lambda]
   statement_id  = "AllowGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.scraper_lambda.function_name
+  function_name = module.scraper_lambda.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn = "${aws_api_gateway_rest_api.gtw.execution_arn}/*"
+}
+
+module "scheduler_lambda" {
+  source = "./modules/lambda"
+  function_name = var.lambda_scheduler_name
+  lambda_handler = "handler.lambda_handler"
+  role_arn = aws_iam_role.iam_for_lambda.arn
+  create_layer_requirements = false
+  source_file = "handler.py"
+  source_path = abspath("../src/scheduler")
+  environment = {"NEWEST_OFFERS_TABLE" = aws_dynamodb_table.offers-table.id}
+  tags        = var.tags
 }
