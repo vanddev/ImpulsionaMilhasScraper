@@ -3,42 +3,52 @@ import os
 from datetime import datetime
 import requests
 import boto3
+import logging
 
 FUNCTION_SCRAPER = os.getenv('LAMBDA_SCRAPER_ARN')
 OFFERS_TABLE_NAME = os.getenv('NEWEST_OFFERS_TABLE')
+NOTIFICATOR_URL = os.getenv('NOTIFICATOR_URL')
 lambda_client = boto3.client('lambda')
 dynamo_client = boto3.client('dynamodb')
 groups = ["smiles", "latampass", "tudoazul"]
 post_date_format = '%d/%m/%Y'
-NOTIFICATOR_URL = ''
+logger = logging.getLogger(__name__)
 
 
-def save_offers(scraper_result):
-    for offer in scraper_result:
-        dynamo_client.put_item(
-            TableName=OFFERS_TABLE_NAME,
-            Item={
+def save_offers(offers):
+    put_items = list(map(lambda item: {
+        'PutRequest': {
+            'Item': {
                 'Title': {
-                    'S': offer['title']
+                    'S': item['title']
                 },
                 'Description': {
-                    'S': offer['description']
+                    'S': item['description']
                 },
                 'Group': {
-                    'S': offer['group']
+                    'S': item['group']
+                },
+                'OriginalURL': {
+                    'S': item['original_url']
                 },
                 'Deadline': {
-                    'S': offer['deadline']
+                    'S': item['deadline']
                 },
                 'ExpirationDate': {
-                    'N': datetime.strptime(offer['deadline'], post_date_format).timestamp()
+                    'N': str(int(datetime.strptime(item['deadline'], post_date_format).timestamp()))
                 }
             }
-        )
+        }
+    }, offers))
+    dynamo_client.batch_write_item(
+        RequestItems={
+            OFFERS_TABLE_NAME: put_items
+        }
+    )
 
 
 def parse_offers_to_keys(offers):
-    return list(map(lambda item: {'title': {'S': item['Title']}}, offers))
+    return list(map(lambda item: {'OriginalURL': {'S': item['original_url']}}, offers))
 
 
 def parse_datas_to_offers(datas):
@@ -46,7 +56,8 @@ def parse_datas_to_offers(datas):
         'title': item['Title']['S'],
         'description': item['Description']['S'],
         'group': item['Group']['S'],
-        'deadline': item['Deadline']['S']
+        'deadline': item['Deadline']['S'],
+        'original_url': item['OriginalURL']['S']
     }, datas))
 
 
@@ -62,16 +73,22 @@ def get_sent_offers_diff(offers):
     return offers_diff
 
 
-def send_offers_to_subscribers(offers_to_send):
-    for offer in offers_to_send:
-        requests.post(NOTIFICATOR_URL, data=offer)
+def send_offers_to_subscribers(offers_to_send) -> bool:
+    # since the telegram is on back4app, its good check app's health to wake apps up
+    response = requests.get(f"{NOTIFICATOR_URL}/health")
+    if response.status_code != 200:
+        logger.warning(f"Error on connect to {NOTIFICATOR_URL}")
+        return False
+    requests.post(f"{NOTIFICATOR_URL}/broadcast/subscribed", data=offers_to_send)
+    return True
 
 
 def lambda_handler(event, context):
-    scraper_result = lambda_client.invoke(
+    response = lambda_client.invoke(
         FunctionName=FUNCTION_SCRAPER,
         Payload=json.dumps({"exclude_expired": False, "groups": groups})
     )
-    offers_to_send = get_sent_offers_diff(scraper_result)
-    send_offers_to_subscribers(offers_to_send)
-    save_offers(offers_to_send)
+    response_payload = json.load(response['Payload'])
+    offers_to_send = get_sent_offers_diff(response_payload)
+    if send_offers_to_subscribers(offers_to_send):
+        save_offers(offers_to_send)

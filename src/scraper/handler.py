@@ -30,12 +30,13 @@ def extract_opportunity(post):
     op = {
         "title": post.h4.a.text,
         "description": clean_text(post.p.get_text(strip=True)),
-        "deadline": post.find_all('small')[0].get_text(strip=True).replace('Até').strip()
+        "deadline": post.find_all('small')[0].get_text(strip=True).replace('Até', '').strip(),
+        "original_url": post.h4.a.attrs['href']
     }
     return op
 
 
-def scrape_portal(group_name, exclude_expired=False):
+def scrape_portal(group_name, exclude_expired=True):
     url = groups[group_name]
     page = requests.get(url)
     current_date = datetime.now().date()
@@ -43,13 +44,11 @@ def scrape_portal(group_name, exclude_expired=False):
     posts = soup.find_all('article', class_='post-single')
     opportunities = []
     for post in posts:
-        title = get_title(post)
-        if any(substring in title.lower() for substring in keywords):
-            opportunity = extract_opportunity(post)
-            opportunity['group'] = group_name
-            deadline = datetime.strptime(opportunity['deadline'], post_date_format).date()
-            if current_date < deadline or not exclude_expired:
-                opportunities.append(opportunity)
+        opportunity = extract_opportunity(post)
+        opportunity['group'] = group_name
+        deadline = datetime.strptime(opportunity['deadline'], post_date_format).date()
+        if current_date < deadline or not exclude_expired:
+            opportunities.append(opportunity)
     return opportunities
 
 
@@ -94,3 +93,7 @@ def lambda_handler(event, context):
     if 'httpMethod' in event:
         return gateway_event_handler(event)
     return default_event_handler(event)
+
+
+if __name__ == '__main__':
+    print(lambda_handler({"exclude_expired": True, "groups": ["smiles"]}, None))

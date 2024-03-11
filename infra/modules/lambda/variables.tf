@@ -35,10 +35,10 @@ variable "create_layer_requirements" {
   default = true
 }
 
-variable "environment" {
-  type = any
-  description = "Env vars for the lambda function"
-  default = {}
+variable "environment_variables" {
+  description = "A map that defines environment variables for the Lambda Function."
+  type        = map(string)
+  default     = {}
 }
 
 variable "tags" {

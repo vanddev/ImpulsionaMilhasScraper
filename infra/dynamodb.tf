@@ -1,12 +1,12 @@
 resource "aws_dynamodb_table" "offers-table" {
   name           = "ImpulsionaMilhasOffers"
   billing_mode   = "PROVISIONED"
-  read_capacity  = 2
-  write_capacity = 2
-  hash_key       = "Title"
+  read_capacity  = 10
+  write_capacity = 10
+  hash_key       = "OriginalURL"
 
   attribute {
-    name = "Title"
+    name = "OriginalURL"
     type = "S"
   }
 

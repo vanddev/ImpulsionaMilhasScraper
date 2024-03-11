@@ -13,7 +13,6 @@ resource "null_resource" "lambda_layer" {
   triggers = {
     requirements = filesha1(local.requirements_path)
   }
-  # the command to install python and dependencies to the machine and zips
   provisioner "local-exec" {
     command = "sed -i 's/\r//' ${path.module}/create_layer_zip.sh && ${path.module}/create_layer_zip.sh ${local.layer_path} ${local.requirements_path} ${local.layer_zip_name}"
   }
@@ -28,13 +27,17 @@ resource "aws_lambda_layer_version" "lambda_layer" {
   compatible_runtimes = ["python3.8"]
 }
 
-resource "null_resource" "delete_zip_after_publish" {
-  depends_on = [aws_lambda_layer_version.lambda_layer]
-
-  provisioner "local-exec" {
-    command = "rm -rf ${local.layer_path} && rm -rf ${local.layer_zip_name}"
-  }
-}
+#resource "null_resource" "delete_zip_after_publish" {
+#  depends_on = [aws_lambda_layer_version.lambda_layer]
+#
+#  triggers = {
+#    always_run = timestamp()
+#  }
+#
+#  provisioner "local-exec" {
+#    command = "rm -rf ${local.layer_path} && rm -rf ${local.layer_zip_name}"
+#  }
+#}
 
 data "archive_file" "lambda" {
   type        = "zip"
@@ -50,14 +53,25 @@ resource "aws_lambda_function" "lambda" {
   layers           = setunion(var.create_layer_requirements ? [aws_lambda_layer_version.lambda_layer[0].arn]:[], var.layers)
   source_code_hash = data.archive_file.lambda.output_base64sha256
   runtime          = "python3.8"
-  environment      = var.environment
+  timeout          = 60 * 5
+  dynamic "environment" {
+    for_each = length(keys(var.environment_variables)) == 0 ? [] : [true]
+    content {
+      variables = var.environment_variables
+    }
+  }
+
   tags             = var.tags
 }
 
-resource "null_resource" "delete_lambda_zip_after_publish" {
-  depends_on = [aws_lambda_function.lambda]
-
-  provisioner "local-exec" {
-    command = "rm -rf ${local.lambda_file_source}"
-  }
-}
+#resource "null_resource" "delete_lambda_zip_after_publish" {
+#  depends_on = [aws_lambda_function.lambda]
+#
+#  triggers = {
+#    always_run = timestamp()
+#  }
+#
+#  provisioner "local-exec" {
+#    command = "rm -rf ${local.lambda_file_source}"
+#  }
+#}
