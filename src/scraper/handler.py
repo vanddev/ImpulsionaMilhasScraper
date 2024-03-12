@@ -1,9 +1,10 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime
+
 import requests
 from bs4 import BeautifulSoup
 
-keywords = ["compre", "transfer", "transfira", "bônus", "bonificada"]
+keywords = ["compre", "transfer", "transfira", "bônus", "bonificada", "vende", "desconto", "oferta", "pontos"]
 groups = {"smiles": "https://e-milhas.com/c/9-smiles",
           "latampass": "https://e-milhas.com/c/10-latam-pass",
           "tudoazul": "https://e-milhas.com/c/11-tudoazul"}
@@ -13,10 +14,6 @@ post_date_format = '%d/%m/%Y'
 class BadRequestErrors:
     empty_query_parameter = "The Query Parameter 'airline_group' must be fulfilled"
     invalid_group = "The airline_group informed is invalid"
-
-
-def get_title(post) -> str:
-    return post.h4.a.text
 
 
 def clean_text(text):
@@ -31,7 +28,7 @@ def extract_opportunity(post):
         "title": post.h4.a.text,
         "description": clean_text(post.p.get_text(strip=True)),
         "deadline": post.find_all('small')[0].get_text(strip=True).replace('Até', '').strip(),
-        "original_url": post.h4.a.attrs['href']
+        "original_url": post.h4.a.attrs['href'].split('-')[0]
     }
     return op
 
@@ -45,10 +42,12 @@ def scrape_portal(group_name, exclude_expired=True):
     opportunities = []
     for post in posts:
         opportunity = extract_opportunity(post)
-        opportunity['group'] = group_name
-        deadline = datetime.strptime(opportunity['deadline'], post_date_format).date()
-        if current_date < deadline or not exclude_expired:
-            opportunities.append(opportunity)
+        if any(substring in opportunity['description'].lower() for substring in keywords):
+            opportunity.pop('description')
+            opportunity['group'] = group_name
+            deadline = datetime.strptime(opportunity['deadline'], post_date_format).date()
+            if current_date < deadline or not exclude_expired:
+                opportunities.append(opportunity)
     return opportunities
 
 
@@ -96,4 +95,5 @@ def lambda_handler(event, context):
 
 
 if __name__ == '__main__':
-    print(lambda_handler({"exclude_expired": True, "groups": ["smiles"]}, None))
+    result = lambda_handler({"exclude_expired": True, "groups": ["latampass"]}, None)
+    print(list(map(lambda x: x['title'], result)))
