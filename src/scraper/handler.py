@@ -5,9 +5,10 @@ import requests
 from bs4 import BeautifulSoup
 
 keywords = ["compre", "transfer", "transfira", "bônus", "bonificada", "vende", "desconto", "oferta", "pontos"]
-groups = {"smiles": "https://e-milhas.com/c/9-smiles",
-          "latampass": "https://e-milhas.com/c/10-latam-pass",
-          "tudoazul": "https://e-milhas.com/c/11-tudoazul"}
+news_host = "https://e-milhas.com"
+groups = {"smiles": "/c/9-smiles",
+          "latampass": "/c/10-latam-pass",
+          "tudoazul": "/c/11-tudoazul"}
 post_date_format = '%d/%m/%Y'
 
 
@@ -28,7 +29,7 @@ def extract_opportunity(post):
         "title": post.h4.a.text,
         "description": clean_text(post.p.get_text(strip=True)),
         "deadline": post.find_all('small')[0].get_text(strip=True).replace('Até', '').strip(),
-        "original_url": post.h4.a.attrs['href'].split('-')[0]
+        "original_url": f"{news_host}/{post.h4.a.attrs['href'].split('-')[0]}"
     }
     return op
 
