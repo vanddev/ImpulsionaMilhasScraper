@@ -43,8 +43,7 @@ def scrape_portal(group_name, exclude_expired=True):
     opportunities = []
     for post in posts:
         opportunity = extract_opportunity(post)
-        if any(substring in opportunity['description'].lower() for substring in keywords):
-            opportunity.pop('description')
+        if any(substring in opportunity['title'].lower() for substring in keywords):
             opportunity['group'] = group_name
             deadline = datetime.strptime(opportunity['deadline'], post_date_format).date()
             if current_date < deadline or not exclude_expired:
