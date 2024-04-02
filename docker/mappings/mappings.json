@@ -1,0 +1,29 @@
+{
+    "mappings": [
+        {
+            "request": {
+                "method": "GET",
+                "url": "/health"
+            },
+            "response": {
+                "status": 200,
+                "body": "Hello"
+            }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "urlPathPattern": "/broadcast/subscribed",
+            "queryParameters": {
+              "group": {
+                "matches": "^(smiles|latampass|tudoazul)$"
+              }
+            }
+          },
+          "response": {
+            "status": 400,
+            "body": "Response body"
+          }
+        }
+    ]
+}

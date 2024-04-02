@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+
+  localstack:
+    image: localstack/localstack:3.3.0
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb,lambda
+      - AWS_ACCESS_KEY_ID=x
+      - AWS_SECRET_ACCESS_KEY=x
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_OUTPUT=json
+    volumes:
+      - "./localstack:/etc/localstack/init/ready.d"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  wiremock:
+    image: wiremock/wiremock:3.5.2
+    ports:
+      - "8000:8080"
+    volumes:
+      - "./mappings:/home/wiremock/mappings"
+    entrypoint: ["/docker-entrypoint.sh", "--verbose"]
