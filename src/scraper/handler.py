@@ -35,7 +35,7 @@ def extract_opportunity(post):
 
 
 def scrape_portal(group_name, exclude_expired=True):
-    url = groups[group_name]
+    url = news_host + groups[group_name]
     page = requests.get(url)
     current_date = datetime.now().date()
     soup = BeautifulSoup(page.content, "html.parser")
@@ -92,8 +92,3 @@ def lambda_handler(event, context):
     if 'httpMethod' in event:
         return gateway_event_handler(event)
     return default_event_handler(event)
-
-
-if __name__ == '__main__':
-    result = lambda_handler({"exclude_expired": True, "groups": ["latampass"]}, None)
-    print(list(map(lambda x: x['title'], result)))

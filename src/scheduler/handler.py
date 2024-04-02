@@ -16,35 +16,33 @@ logger = logging.getLogger(__name__)
 
 
 def save_offers(offers):
-    put_items = list(map(lambda item: {
-        'PutRequest': {
-            'Item': {
-                'Title': {
-                    'S': item['title']
-                },
-                'Description': {
-                    'S': item['description']
-                },
-                'Group': {
-                    'S': item['group']
-                },
-                'OriginalURL': {
-                    'S': item['original_url']
-                },
-                'Deadline': {
-                    'S': item['deadline']
-                },
-                'ExpirationDate': {
-                    'N': str(int(datetime.strptime(item['deadline'], post_date_format).timestamp()))
+    if offers:
+        put_items = list(map(lambda item: {
+            'PutRequest': {
+                'Item': {
+                    'Title': {
+                        'S': item['title']
+                    },
+                    'Group': {
+                        'S': item['group']
+                    },
+                    'OriginalURL': {
+                        'S': item['original_url']
+                    },
+                    'Deadline': {
+                        'S': item['deadline']
+                    },
+                    'ExpirationDate': {
+                        'N': str(int(datetime.strptime(item['deadline'], post_date_format).timestamp()))
+                    }
                 }
             }
-        }
-    }, offers))
-    dynamo_client.batch_write_item(
-        RequestItems={
-            OFFERS_TABLE_NAME: put_items
-        }
-    )
+        }, offers))
+        dynamo_client.batch_write_item(
+            RequestItems={
+                OFFERS_TABLE_NAME: put_items
+            }
+        )
 
 
 def parse_offers_to_keys(offers):
@@ -54,7 +52,6 @@ def parse_offers_to_keys(offers):
 def parse_datas_to_offers(datas):
     return list(map(lambda item: {
         'title': item['Title']['S'],
-        'description': item['Description']['S'],
         'group': item['Group']['S'],
         'deadline': item['Deadline']['S'],
         'original_url': item['OriginalURL']['S']
@@ -62,13 +59,16 @@ def parse_datas_to_offers(datas):
 
 
 def get_sent_offers_diff(offers):
-    response = parse_datas_to_offers(dynamo_client.batch_get_item(
+    keys = parse_offers_to_keys(offers)
+    data = dynamo_client.batch_get_item(
         RequestItems={
             OFFERS_TABLE_NAME: {
-                'Keys': parse_offers_to_keys(offers)
+                'Keys': keys
             }
         }
-    )['Responses'][OFFERS_TABLE_NAME])
+    )['Responses'][OFFERS_TABLE_NAME]
+
+    response = parse_datas_to_offers(data)
     offers_diff = [offer for offer in offers if offer not in response]
     return offers_diff
 
@@ -79,8 +79,21 @@ def send_offers_to_subscribers(offers_to_send) -> bool:
     if response.status_code != 200:
         logger.warning(f"Error on connect to {NOTIFICATOR_URL}")
         return False
-    requests.post(f"{NOTIFICATOR_URL}/broadcast/subscribed", data=offers_to_send)
+    offers_group = split_offers_by_groups(offers_to_send)
+    for offers in offers_group:
+        response = requests.post(f"{NOTIFICATOR_URL}/broadcast/subscribed?group={offers[0]['group']}", json=offers)
+        if response.status_code != 200:
+            logger.warning(f"Error on send broadcast message to offers {offers}")
+            return False
     return True
+
+
+def split_offers_by_groups(offers):
+    airline_groups = list(map(lambda item: item['group'], offers))
+    offers_by_group = []
+    for group in airline_groups:
+        offers_by_group.append(list(filter(lambda item: item['group'] == group, offers)))
+    return offers_by_group
 
 
 def lambda_handler(event, context):

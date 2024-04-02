@@ -107,3 +107,22 @@ module "scheduler_lambda" {
   }
   tags        = var.tags
 }
+
+resource "aws_cloudwatch_event_rule" "scheduler_lambda_rule" {
+  name = "${var.lambda_scheduler_name}-event-rule"
+  description = "run every day at 7PM"
+  schedule_expression = "cron(0 19 * * ? *)"
+}
+
+resource "aws_cloudwatch_event_target" "profile_generator_lambda_target" {
+  arn = module.scheduler_lambda.arn
+  rule = aws_cloudwatch_event_rule.scheduler_lambda_rule.name
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_event" {
+  statement_id = "AllowExecutionFromCloudWatch"
+  action = "lambda:InvokeFunction"
+  function_name = module.scheduler_lambda.function_name
+  principal = "events.amazonaws.com"
+  source_arn = aws_cloudwatch_event_rule.scheduler_lambda_rule.arn
+}
