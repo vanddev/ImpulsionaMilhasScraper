@@ -11,20 +11,6 @@ data "aws_iam_policy_document" "lambda_role" {
   }
 }
 
-data "aws_iam_policy_document" "lambda_policy" {
-  statement {
-    effect = "Allow"
-
-    resources = ["*"]
-
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
-    ]
-  }
-}
-
 data "aws_iam_policy_document" "subscriber_notificator_policy" {
   statement {
     effect = "Allow"
@@ -53,18 +39,13 @@ data "aws_iam_policy_document" "subscriber_notificator_policy" {
 resource "aws_iam_role" "iam_for_lambda" {
   name               = "${var.lambda_scraper_name}-role"
   assume_role_policy = data.aws_iam_policy_document.lambda_role.json
+  managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
 }
 
 resource "aws_iam_role" "iam_for_lambda_scheduler" {
-  name               = "${var.lambda_scheduler_name}-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_role.json
-}
-
-resource "aws_iam_role_policy" "lambda_policy" {
-  name = "${var.lambda_scraper_name}-policy"
-  role = aws_iam_role.iam_for_lambda.id
-
-  policy = data.aws_iam_policy_document.lambda_policy.json
+  name                = "${var.lambda_scheduler_name}-role"
+  assume_role_policy  = data.aws_iam_policy_document.lambda_role.json
+  managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
 }
 
 resource "aws_iam_role_policy" "lambda_policy_scheduler" {
@@ -125,4 +106,12 @@ resource "aws_lambda_permission" "allow_cloudwatch_event" {
   function_name = module.scheduler_lambda.function_name
   principal = "events.amazonaws.com"
   source_arn = aws_cloudwatch_event_rule.scheduler_lambda_rule.arn
+}
+
+resource "aws_lambda_permission" "allow_scheduler_invoke_scraper" {
+  statement_id = "AllowExecutionFromScheduler"
+  action = "lambda:InvokeFunction"
+  function_name = module.scraper_lambda.function_name
+  principal = "events.amazonaws.com"
+  source_arn = module.scheduler_lambda.arn
 }

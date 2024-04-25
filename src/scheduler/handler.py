@@ -1,6 +1,8 @@
 import json
 import os
 from datetime import datetime
+from typing import List, Any
+
 import requests
 import boto3
 import logging
@@ -17,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 def save_offers(offers):
     if offers:
+        flat_list = [item for row in offers for item in row]
         put_items = list(map(lambda item: {
             'PutRequest': {
                 'Item': {
@@ -37,7 +40,7 @@ def save_offers(offers):
                     }
                 }
             }
-        }, offers))
+        }, flat_list))
         dynamo_client.batch_write_item(
             RequestItems={
                 OFFERS_TABLE_NAME: put_items
@@ -73,23 +76,27 @@ def get_sent_offers_diff(offers):
     return offers_diff
 
 
-def send_offers_to_subscribers(offers_to_send) -> bool:
+def send_offers_to_subscribers(offers_to_send):
     # since the telegram is on back4app, its good check app's health to wake apps up
-    response = requests.get(f"{NOTIFICATOR_URL}/health")
+    response = requests.get(f"{NOTIFICATOR_URL}/health", timeout=None)
     if response.status_code != 200:
         logger.warning(f"Error on connect to {NOTIFICATOR_URL}")
-        return False
+        return
     offers_group = split_offers_by_groups(offers_to_send)
+    offers_sent = []
     for offers in offers_group:
-        response = requests.post(f"{NOTIFICATOR_URL}/broadcast/subscribed?group={offers[0]['group']}", json=offers)
+        # since we have a rate limit on boat, we only sent 3 messages by group
+        offers_payload = offers[:3]
+        response = requests.post(f"{NOTIFICATOR_URL}/broadcast/subscribed?group={offers[0]['group']}", json=offers_payload)
         if response.status_code != 200:
-            logger.warning(f"Error on send broadcast message to offers {offers}")
-            return False
-    return True
+            logger.warning(f"Error on send broadcast message to offers {offers_payload}")
+            return
+        offers_sent.append(offers_payload)
+    return offers_sent
 
 
 def split_offers_by_groups(offers):
-    airline_groups = list(map(lambda item: item['group'], offers))
+    airline_groups = list(set(map(lambda item: item['group'], offers)))
     offers_by_group = []
     for group in airline_groups:
         offers_by_group.append(list(filter(lambda item: item['group'] == group, offers)))
@@ -99,9 +106,12 @@ def split_offers_by_groups(offers):
 def lambda_handler(event, context):
     response = lambda_client.invoke(
         FunctionName=FUNCTION_SCRAPER,
-        Payload=json.dumps({"exclude_expired": False, "groups": groups})
+        Payload=json.dumps({"exclude_expired": True, "groups": groups})
     )
     response_payload = json.load(response['Payload'])
     offers_to_send = get_sent_offers_diff(response_payload)
-    if send_offers_to_subscribers(offers_to_send):
-        save_offers(offers_to_send)
+    offers_sent = send_offers_to_subscribers(offers_to_send)
+    if offers_sent:
+        save_offers(offers_sent)
+
+    return 200

@@ -27,7 +27,6 @@ def clean_text(text):
 def extract_opportunity(post):
     op = {
         "title": post.h4.a.text,
-        "description": clean_text(post.p.get_text(strip=True)),
         "deadline": post.find_all('small')[0].get_text(strip=True).replace('Até', '').strip(),
         "original_url": f"{news_host}/{post.h4.a.attrs['href'].split('-')[0]}"
     }

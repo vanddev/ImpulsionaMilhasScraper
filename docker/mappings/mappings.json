@@ -21,7 +21,7 @@
             }
           },
           "response": {
-            "status": 400,
+            "status": 200,
             "body": "Response body"
           }
         }
