@@ -40,12 +40,14 @@ resource "aws_iam_role" "iam_for_lambda" {
   name               = "${var.lambda_scraper_name}-role"
   assume_role_policy = data.aws_iam_policy_document.lambda_role.json
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
+  tags = var.tags
 }
 
 resource "aws_iam_role" "iam_for_lambda_scheduler" {
   name                = "${var.lambda_scheduler_name}-role"
   assume_role_policy  = data.aws_iam_policy_document.lambda_role.json
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
+  tags = var.tags
 }
 
 resource "aws_iam_role_policy" "lambda_policy_scheduler" {
@@ -53,6 +55,7 @@ resource "aws_iam_role_policy" "lambda_policy_scheduler" {
   role = aws_iam_role.iam_for_lambda_scheduler.id
 
   policy = data.aws_iam_policy_document.subscriber_notificator_policy.json
+  tags = var.tags
 }
 
 module "scraper_lambda" {
@@ -93,6 +96,7 @@ resource "aws_cloudwatch_event_rule" "scheduler_lambda_rule" {
   name = "${var.lambda_scheduler_name}-event-rule"
   description = "run every day at 7PM"
   schedule_expression = "cron(0 19 * * ? *)"
+  tags = var.tags
 }
 
 resource "aws_cloudwatch_event_target" "profile_generator_lambda_target" {

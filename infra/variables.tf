@@ -12,7 +12,7 @@ variable "gateway_name" {
 
 variable "tags" {
   default = {
-    Name = "ImpulsionaMilhas"
+    Project = "ImpulsionaMilhas"
   }
 }
 
