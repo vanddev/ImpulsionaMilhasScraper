@@ -55,7 +55,6 @@ resource "aws_iam_role_policy" "lambda_policy_scheduler" {
   role = aws_iam_role.iam_for_lambda_scheduler.id
 
   policy = data.aws_iam_policy_document.subscriber_notificator_policy.json
-  tags = var.tags
 }
 
 module "scraper_lambda" {
