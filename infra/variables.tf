@@ -17,5 +17,5 @@ variable "tags" {
 }
 
 variable "telegram_bot_url" {
-  default = "https://impulsionanews1-343fazpg.b4a.run"
+  default = "https://impulsionamilhas2-m6r3gl47.b4a.run"
 }

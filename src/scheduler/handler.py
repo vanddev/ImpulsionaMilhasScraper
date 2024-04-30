@@ -80,8 +80,7 @@ def send_offers_to_subscribers(offers_to_send):
     # since the telegram is on back4app, its good check app's health to wake apps up
     response = requests.get(f"{NOTIFICATOR_URL}/health", timeout=None)
     if response.status_code != 200:
-        logger.warning(f"Error on connect to {NOTIFICATOR_URL}")
-        return
+        raise Exception(f"Error on connect to {NOTIFICATOR_URL}")
     offers_group = split_offers_by_groups(offers_to_send)
     offers_sent = []
     for offers in offers_group:
