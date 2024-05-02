@@ -59,11 +59,16 @@ resource "aws_api_gateway_stage" "dev" {
   stage_name    = "dev"
 }
 
-resource "aws_api_gateway_base_path_mapping" "path_mapping" {
+resource "aws_api_gateway_base_path_mapping" "mapping_root" {
   api_id      = aws_api_gateway_rest_api.gtw.id
-  stage_name  = aws_api_gateway_deployment.deploy.stage_name
+  stage_name  = aws_api_gateway_stage.dev.stage_name
   domain_name = var.custom_domain
-
-  # Set this to an empty string to define the root path
   base_path = ""
+}
+
+resource "aws_api_gateway_base_path_mapping" "mapping_stage" {
+  api_id      = aws_api_gateway_rest_api.gtw.id
+  stage_name  = aws_api_gateway_stage.dev.stage_name
+  domain_name = var.custom_domain
+  base_path = "*"
 }
