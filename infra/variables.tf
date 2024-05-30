@@ -17,7 +17,7 @@ variable "tags" {
 }
 
 variable "telegram_bot_url" {
-  default = "https://impulsionamilhas2-m6r3gl47.b4a.run"
+  default = "https://impulsionamilhaapp.vand.dev"
 }
 
 variable "custom_domain" {
